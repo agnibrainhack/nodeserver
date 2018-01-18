@@ -1,5 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const MongoClient = require('mongodb').MongoClient;
+const assert = require('assert');
 
 const apiRouter = express.Router();
 
