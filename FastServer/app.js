@@ -50,38 +50,85 @@ app.use(function(err, req, res, next) {
 });
 
 const url = 'mongodb://localhost:27017/FastServer';
-MongoClient.connect(url, (err, database) => {
-  assert.equal(err, null);
+MongoClient.connect(url).then((database) => {
   console.log('Connected correctly to the server');
   const collectiondb = database.db("api");
   const collection = "myapi";
+  dboper.insertDocument(collectiondb, { name: "Vadonut", description: "Test"},
+  collection)
+  .then((result) => {
+      console.log("Insert Document:\n", result.ops);
 
-  dboper.insertDocument(collectiondb, {name: "Agni",title: "Brainhack"},collection, (result) => {
-          console.log("Inserted Document:\n", result.ops);
+      return dboper.findDocument(collectiondb, collection);
+  })
+  .then((docs) => {
+      console.log("Found Documents:\n", docs);
 
-          dboper.findDocument(collectiondb, collection, (docs) => {
-              console.log("Found Documents:\n", docs);
+      return dboper.updateDocument(collectiondb, { name: "Vadonut" },
+              { description: "Updated Test" }, collection);
 
-              dboper.updateDocument(collectiondb, {name: "Agni"}, {title: "Fuego"}, collection, (result) => {
-                  console.log("Updated Document:\n", result.result);
-                  
-                  dboper.findDocument(collectiondb, collection, (docs)=>{
-                      console.log("Found Documents:\n", docs);
-                      collectiondb.dropCollection("myapi", (result) => {
-                        console.log("Dropped Collection: ",result);
-                      });
+  })
+  .then((result) => {
+      console.log("Updated Document:\n", result.result);
 
-                  });
+      return dboper.findDocument(collectiondb, collection);
+  })
+  .then((docs) => {
+      console.log("Found Updated Documents:\n", docs);
+                      
+      return collectiondb.dropCollection(collection);
+  })
+  .then((result) => {
+      console.log("Dropped Collection: ", result);
+
+      return database.close();
+  })
+  .catch((err) => console.log(err));
+
+})
+.catch((err) => console.log(err));
 
 
 
-              });
+const mongoose = require('mongoose');
+mongoose.Promise = require('bluebird');
 
+const Dishes = require('./routes/models/genericModels');
 
-
-          });
-      });
+const url2 = 'mongodb://localhost:27017/FastServer';
+const connect = mongoose.connect(url2, {
+    useMongoClient: true
 });
+
+connect.then((db) => {
+
+    console.log('Connected correctly to server');
+
+    var newDish = Dishes({
+        name: 'Uthappizza',
+        description: 'test'
+    });
+
+    newDish.save()
+        .then((dish) => {
+            console.log(dish);
+
+            return Dishes.find({}).exec();
+        })
+        .then((dishes) => {
+            console.log(dishes);
+
+            return db.collection('dishes').drop();
+        })
+        .then(() => {
+            return db.close();
+        })
+        .catch((err) => {
+            console.log(err);
+        });
+
+});
+
 
 
 module.exports = app;
