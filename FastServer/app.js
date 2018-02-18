@@ -7,6 +7,8 @@ var bodyParser = require('body-parser');
 const MongoClient = require('mongodb').MongoClient;
 const assert = require('assert');
 const dboper = require('./database_sync/operations');
+var session = require('express-session');
+var FileStore = require('session-file-store')(session);
 
 
 var index = require('./routes/index');
@@ -24,11 +26,46 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+//app.use(cookieParser());
+app.use(session({
+  name: 'session-id',
+  secret: '12345-67890-09876-54321',
+  saveUninitialized: false,
+  resave: false,
+  store: new FileStore()
+}));
+
+
+//app.use(cookieParser('12345-67890-09876-54321'));
+
+
+app.use('/users', users);
+
+function auth (req, res, next) {
+  console.log(req.session);
+
+if(!req.session.user) {
+    var err = new Error('You are not authenticated!');
+    err.status = 403;
+    return next(err);
+}
+else {
+  if (req.session.user === 'authenticated') {
+    next();
+  }
+  else {
+    var err = new Error('You are not authenticated!');
+    err.status = 403;
+    return next(err);
+  }
+}
+}
+app.use(auth);//authorization
 
 app.use('/api', index);
-app.use('/users', users);
+
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -49,44 +86,7 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-const url = 'mongodb://localhost:27017/FastServer';
-MongoClient.connect(url).then((database) => {
-  console.log('Connected correctly to the server');
-  const collectiondb = database.db("api");
-  const collection = "myapi";
-  dboper.insertDocument(collectiondb, { name: "Vadonut", description: "Test"},
-  collection)
-  .then((result) => {
-      console.log("Insert Document:\n", result.ops);
 
-      return dboper.findDocument(collectiondb, collection);
-  })
-  .then((docs) => {
-      console.log("Found Documents:\n", docs);
-
-      return dboper.updateDocument(collectiondb, { name: "Vadonut" },
-              { description: "Updated Test" }, collection);
-
-  })
-  .then((result) => {
-      console.log("Updated Document:\n", result.result);
-
-      return dboper.findDocument(collectiondb, collection);
-  })
-  .then((docs) => {
-      console.log("Found Updated Documents:\n", docs);
-                      
-      return collectiondb.dropCollection(collection);
-  })
-  .then((result) => {
-      console.log("Dropped Collection: ", result);
-
-      return database.close();
-  })
-  .catch((err) => console.log(err));
-
-})
-.catch((err) => console.log(err));
 
 
 
@@ -97,37 +97,13 @@ const Dishes = require('./routes/models/genericModels');
 
 const url2 = 'mongodb://localhost:27017/FastServer';
 const connect = mongoose.connect(url2, {
-    useMongoClient: true
+   // useMongoClient: true
 });
 
 connect.then((db) => {
 
     console.log('Connected correctly to server');
-
-    var newDish = Dishes({
-        name: 'Uthappizza',
-        description: 'test'
-    });
-
-    newDish.save()
-        .then((dish) => {
-            console.log(dish);
-
-            return Dishes.find({}).exec();
-        })
-        .then((dishes) => {
-            console.log(dishes);
-
-            return db.collection('dishes').drop();
-        })
-        .then(() => {
-            return db.close();
-        })
-        .catch((err) => {
-            console.log(err);
-        });
-
-});
+}, (err) => {  console.log(err);   });
 
 
 
